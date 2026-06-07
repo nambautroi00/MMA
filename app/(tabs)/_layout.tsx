@@ -4,6 +4,8 @@ import { Tabs } from 'expo-router';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { useApp } from '@/context/app-context';
+
 export default function TabLayout() {
   return (
     <Tabs
@@ -53,8 +55,17 @@ const tabMeta: Record<
 };
 
 function LiquidTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+  const { settings } = useApp();
+  const isDark = settings.darkMode;
+
   return (
-    <View style={styles.tabBarShell}>
+    <View style={[
+      styles.tabBarShell,
+      {
+        backgroundColor: isDark ? 'rgba(18, 28, 24, 0.92)' : 'rgba(255, 255, 255, 0.88)',
+        borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.8)',
+      }
+    ]}>
       {state.routes.map((route, index) => {
         const focused = state.index === index;
         const meta = tabMeta[route.name];
@@ -86,10 +97,9 @@ function LiquidTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
               pressed && styles.tabButtonPressed,
             ]}>
             <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
-              {focused ? <View style={styles.liquidHighlight} /> : null}
               <MaterialIcons
                 name={meta.icon}
-                size={16}
+                size={18}
                 color={focused ? '#EFFBF3' : '#6F8178'}
               />
               <Text style={[styles.iconLabel, focused && styles.iconLabelActive]}>
@@ -135,14 +145,14 @@ const styles = StyleSheet.create({
   iconWrap: {
     alignItems: 'center',
     borderColor: 'rgba(255, 255, 255, 0)',
-    borderRadius: 26,
+    borderRadius: 25,
     borderWidth: 1,
-    flexDirection: 'row',
-    gap: 3,
-    height: 40,
+    flexDirection: 'column',
+    gap: 2,
+    height: 50,
     justifyContent: 'center',
     overflow: 'hidden',
-    width: 58,
+    width: 70,
   },
   iconWrapActive: {
     backgroundColor: 'rgba(86, 122, 101, 0.86)',
@@ -152,27 +162,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.24,
     shadowRadius: 12,
   },
-  liquidHighlight: {
-    backgroundColor: 'rgba(255, 255, 255, 0.28)',
-    borderRadius: 18,
-    height: 13,
-    left: 10,
-    position: 'absolute',
-    top: 5,
-    width: 38,
-  },
-  liquidHighlightDot: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 10,
-    height: 20,
-    position: 'absolute',
-    right: -5,
-    top: 5,
-    width: 20,
-  },
   iconLabel: {
     color: '#6F8178',
-    fontSize: 8,
+    fontSize: 9,
     fontWeight: '800',
   },
   iconLabelActive: {

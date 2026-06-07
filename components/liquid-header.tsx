@@ -1,24 +1,58 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useApp } from '@/context/app-context';
 
 type LiquidHeaderProps = {
   showNotifications?: boolean;
+  showSearch?: boolean;
 };
 
-export function LiquidHeader({ showNotifications = false }: LiquidHeaderProps) {
+export function LiquidHeader({ showNotifications = false, showSearch = false }: LiquidHeaderProps) {
+  const { settings } = useApp();
+  const isDark = settings.darkMode;
+  const insets = useSafeAreaInsets();
+
   return (
-    <View style={styles.topBar}>
-      <View style={styles.brand}>
-        <Image source={require('@/assets/images/icon.png')} style={styles.avatar} />
-        <Text style={styles.brandText}>TaskFlow</Text>
+    <View style={[
+      styles.topBar,
+      {
+        top: insets.top + 8, // Dynamically set position below notch/status bar!
+        backgroundColor: isDark ? 'rgba(18, 28, 24, 0.92)' : 'rgba(255, 255, 255, 0.88)',
+        borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.8)',
+      }
+    ]}>
+      <View style={[
+        styles.brand,
+        {
+          backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.46)',
+          borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.74)',
+        }
+      ]}>
+        <Image source={require('@/assets/images/icon-app.jpg')} style={styles.avatar} />
+        <Text style={[styles.brandText, { color: isDark ? '#EFFBF3' : '#557866' }]}>TaskFlow</Text>
       </View>
       <View style={styles.topActions}>
-        <View style={styles.actionButton}>
-          <MaterialIcons name="search" size={19} color="#587A6C" />
-        </View>
+        {showSearch ? (
+          <View style={[
+            styles.actionButton,
+            {
+              backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.48)',
+              borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.78)',
+            }
+          ]}>
+            <MaterialIcons name="search" size={19} color={isDark ? '#EFFBF3' : '#587A6C'} />
+          </View>
+        ) : null}
         {showNotifications ? (
-          <View style={styles.actionButton}>
-            <MaterialIcons name="notifications-none" size={19} color="#587A6C" />
+          <View style={[
+            styles.actionButton,
+            {
+              backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.48)',
+              borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.78)',
+            }
+          ]}>
+            <MaterialIcons name="notifications-none" size={19} color={isDark ? '#EFFBF3' : '#587A6C'} />
           </View>
         ) : null}
       </View>
@@ -28,15 +62,14 @@ export function LiquidHeader({ showNotifications = false }: LiquidHeaderProps) {
 
 const styles = StyleSheet.create({
   topBar: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.68)',
-    borderColor: 'rgba(255, 255, 255, 0.88)',
     borderRadius: 24,
     borderWidth: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginHorizontal: 12,
-    marginTop: 8,
     minHeight: 56,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -44,12 +77,10 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.16,
     shadowRadius: 20,
-    zIndex: 4,
+    zIndex: 10,
   },
   brand: {
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.46)',
-    borderColor: 'rgba(255, 255, 255, 0.74)',
     borderRadius: 18,
     borderWidth: 1,
     flexDirection: 'row',
@@ -65,7 +96,6 @@ const styles = StyleSheet.create({
     width: 28,
   },
   brandText: {
-    color: '#557866',
     fontSize: 17,
     fontWeight: '600',
   },
@@ -75,8 +105,6 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.48)',
-    borderColor: 'rgba(255, 255, 255, 0.78)',
     borderRadius: 17,
     borderWidth: 1,
     height: 34,
