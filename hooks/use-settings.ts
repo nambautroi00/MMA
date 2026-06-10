@@ -5,6 +5,10 @@ export interface AppSettings {
   fluidAnimations: boolean;
   workHourStart: string;
   workHourEnd: string;
+  language: 'en' | 'vi';
+  profileName: string;
+  profileRole: string;
+  profileAvatar: string;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -12,6 +16,10 @@ const DEFAULT_SETTINGS: AppSettings = {
   fluidAnimations: true,
   workHourStart: '9:00 AM',
   workHourEnd: '6:00 PM',
+  language: 'en',
+  profileName: 'Nam',
+  profileRole: 'Creative Lead',
+  profileAvatar: '',
 };
 
 export function useSettings() {
@@ -29,10 +37,20 @@ export function useSettings() {
     setSettings((prev) => ({ ...prev, workHourStart: start, workHourEnd: end }));
   }, []);
 
+  const setLanguage = useCallback((language: 'en' | 'vi') => {
+    setSettings((prev) => ({ ...prev, language }));
+  }, []);
+
+  const updateProfile = useCallback((name: string, role: string, avatar: string) => {
+    setSettings((prev) => ({ ...prev, profileName: name, profileRole: role, profileAvatar: avatar }));
+  }, []);
+
   return {
     settings,
     toggleDarkMode,
     toggleFluidAnimations,
     setWorkHours,
+    setLanguage,
+    updateProfile,
   };
 }

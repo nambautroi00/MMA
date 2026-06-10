@@ -1,25 +1,40 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { LiquidHeader } from "@/components/liquid-header";
 import { TaskFormModal } from "@/components/task-form-modal";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useApp } from "@/context/app-context";
-import { Task } from "@/constants/data";
+import { Task, TaskStatus } from "@/constants/data";
 
 export default function HomeScreen() {
-  const { allTasks, stats, settings, toggleStatus, updateTask, addTask } = useApp();
-  const router = useRouter();
+  const {
+    allTasks,
+    stats,
+    settings,
+    toggleStatus,
+    updateTask,
+    addTask,
+    deleteTask,
+    setActiveFocusTask,
+    setShowFocusTimerModal,
+    t,
+  } = useApp();
   const isDark = settings.darkMode;
 
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
+
+  // Bottom sheet details state
+  const [detailTarget, setDetailTarget] = useState<Task | null>(null);
+  const [showDetail, setShowDetail] = useState(false);
 
   const handleCardPress = (task: Task) => {
-    setEditingTask(task);
-    setShowForm(true);
+    setDetailTarget(task);
+    setShowDetail(true);
   };
 
   const handleFormSubmit = (data: any) => {
@@ -32,13 +47,21 @@ export default function HomeScreen() {
     setShowForm(false);
   };
 
+  const handleDelete = () => {
+    if (deleteTarget) {
+      deleteTask(deleteTarget.id);
+      setDeleteTarget(null);
+    }
+  };
+
   // Dynamic greeting based on time of day
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
-    if (hour < 12) return "Good morning, Nam 👋";
-    if (hour < 18) return "Good afternoon, Nam 👋";
-    return "Good evening, Nam 👋";
-  }, []);
+    const name = settings.profileName || 'Nam';
+    if (hour < 12) return t("goodMorning", { name });
+    if (hour < 18) return t("goodAfternoon", { name });
+    return t("goodEvening", { name });
+  }, [t, settings.profileName]);
 
   const focusToday = useMemo(() => {
     const today = new Date().toDateString();
@@ -51,35 +74,43 @@ export default function HomeScreen() {
       .slice(0, 3);
   }, [allTasks]);
 
+  const activeWorkCount = useMemo(() => {
+    return allTasks.filter((t) => t.category === "WORK" && t.status !== "DONE").length;
+  }, [allTasks]);
+
+  const activeStudyCount = useMemo(() => {
+    return allTasks.filter((t) => t.category === "STUDY" && t.status !== "DONE").length;
+  }, [allTasks]);
+
   const recentActivity = useMemo(() => {
     const sorted = [...allTasks].sort(
       (a, b) =>
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
-    return sorted.slice(0, 3).map((t) => ({
-      id: t.id,
+    return sorted.slice(0, 3).map((task) => ({
+      id: task.id,
       icon:
-        t.status === "DONE"
+        task.status === "DONE"
           ? ("check-circle" as const)
-          : t.status === "IN PROGRESS"
+          : task.status === "IN PROGRESS"
             ? ("play-circle" as const)
             : ("add-circle-outline" as const),
       label:
-        t.status === "DONE"
-          ? "Task Completed"
-          : t.status === "IN PROGRESS"
-            ? "Task Updated"
-            : "Task Created",
-      title: t.title,
-      time: getRelativeTime(t.createdAt),
+        task.status === "DONE"
+          ? t("taskCompleted")
+          : task.status === "IN PROGRESS"
+            ? t("taskUpdated")
+            : t("taskCreated"),
+      title: task.title,
+      time: getRelativeTime(task.createdAt, t),
       color:
-        t.status === "DONE"
+        task.status === "DONE"
           ? "#4CAF50"
-          : t.status === "IN PROGRESS"
+          : task.status === "IN PROGRESS"
             ? "#FF9800"
             : "#2196F3",
     }));
-  }, [allTasks]);
+  }, [allTasks, t]);
 
   // Dynamic theme styles
   const themeStyles = {
@@ -117,31 +148,31 @@ export default function HomeScreen() {
           <Text style={[styles.greeting, themeStyles.textPrimary]}>{greeting}</Text>
           <Text style={[styles.subGreeting, themeStyles.textSecondary]}>
             {stats.pendingTasks > 0
-              ? `You have ${stats.pendingTasks} pending task${stats.pendingTasks > 1 ? "s" : ""} for today.`
-              : "All tasks completed! Have a wonderful day. ✨"}
+              ? t('pendingTasksMsg', { count: stats.pendingTasks, plural: stats.pendingTasks > 1 ? 's' : '' })
+              : t('allTasksCompleted')}
           </Text>
         </View>
 
         {/* Hero Card - Today's Progress */}
         <View style={[styles.heroCard, isDark ? styles.heroCardDark : styles.heroCardLight]}>
           <View style={styles.heroLeft}>
-            <Text style={styles.heroTitle}>Today's Progress</Text>
-            <Text style={styles.heroSubtitle}>Focusing on what matters</Text>
+            <Text style={styles.heroTitle}>{t('todaysProgress')}</Text>
+            <Text style={styles.heroSubtitle}>{t('focusingOnWhatMatters')}</Text>
 
             <View style={styles.heroStatsContainer}>
               <View style={styles.heroStatItem}>
                 <Text style={styles.heroStatValue}>{stats.totalTasks}</Text>
-                <Text style={styles.heroStatLabel}>Total Tasks</Text>
+                <Text style={styles.heroStatLabel}>{t('totalTasks')}</Text>
               </View>
               <View style={styles.heroStatDivider} />
               <View style={styles.heroStatItem}>
                 <Text style={[styles.heroStatValue, { color: "#A8DCD0" }]}>{stats.completedTasks}</Text>
-                <Text style={styles.heroStatLabel}>Completed</Text>
+                <Text style={styles.heroStatLabel}>{t('completed')}</Text>
               </View>
               <View style={styles.heroStatDivider} />
               <View style={styles.heroStatItem}>
                 <Text style={[styles.heroStatValue, { color: "#FBBF24" }]}>{stats.pendingTasks}</Text>
-                <Text style={styles.heroStatLabel}>Remaining</Text>
+                <Text style={styles.heroStatLabel}>{t('remaining')}</Text>
               </View>
             </View>
           </View>
@@ -155,7 +186,7 @@ export default function HomeScreen() {
                   { borderTopColor: "#5EEAD4", borderRightColor: stats.completionRate >= 50 ? "#5EEAD4" : "rgba(255,255,255,0.08)" }
                 ]}>
                   <Text style={styles.progressPercent}>{stats.completionRate}%</Text>
-                  <Text style={styles.progressLabel}>Done</Text>
+                  <Text style={styles.progressLabel}>{t('completed')}</Text>
                 </View>
               </View>
             </View>
@@ -164,9 +195,9 @@ export default function HomeScreen() {
 
         {/* Focus Today */}
         <View style={styles.sectionHeaderRow}>
-          <Text style={[styles.sectionTitle, themeStyles.textPrimary]}>Focus Today</Text>
+          <Text style={[styles.sectionTitle, themeStyles.textPrimary]}>{t('focusToday')}</Text>
           <Text style={[styles.sectionSubLink, themeStyles.textSecondary]}>
-            {focusToday.length} task{focusToday.length !== 1 ? "s" : ""} remaining
+            {t('tasksRemaining', { count: focusToday.length, plural: focusToday.length !== 1 ? 's' : '' })}
           </Text>
         </View>
 
@@ -175,8 +206,8 @@ export default function HomeScreen() {
             <View style={styles.emptyIconBg}>
               <MaterialIcons name="celebration" size={32} color="#5F806D" />
             </View>
-            <Text style={[styles.emptyTextTitle, themeStyles.textPrimary]}>You're all caught up!</Text>
-            <Text style={[styles.emptyTextSub, themeStyles.textSecondary]}>No high priority or pending tasks due today.</Text>
+            <Text style={[styles.emptyTextTitle, themeStyles.textPrimary]}>{t('allCaughtUp')}</Text>
+            <Text style={[styles.emptyTextSub, themeStyles.textSecondary]}>{t('allCaughtUpDesc')}</Text>
           </View>
         ) : (
           <View style={styles.focusContainer}>
@@ -219,7 +250,7 @@ export default function HomeScreen() {
                         color: task.priority === "HIGH" ? "#EF4444" : task.priority === "MED" ? "#F59E0B" : "#10B981",
                         fontSize: 12,
                         fontWeight: "900"
-                      }}>•</Text>  {task.priority === "HIGH" ? "High Priority" : task.priority === "MED" ? "Medium Priority" : "Low Priority"}
+                      }}>•</Text>  {task.priority === "HIGH" ? t("highPriority") : task.priority === "MED" ? t("mediumPriority") : t("lowPriority")}
                     </Text>
                   </View>
                 </View>
@@ -230,61 +261,62 @@ export default function HomeScreen() {
 
         {/* Quick Stats - Bento Grid */}
         <Text style={[styles.sectionTitle, themeStyles.textPrimary, { marginTop: 24, marginBottom: 12 }]}>
-          Quick Stats
+          {t('workspaceSummary')}
         </Text>
         <View style={styles.bentoGrid}>
-          {/* Completed Stats */}
-          <View style={[styles.bentoCard, themeStyles.cardBg, styles.cardBorder, { width: "48%" }]}>
-            <View style={[styles.bentoIconContainer, { backgroundColor: "rgba(16, 185, 129, 0.1)" }]}>
-              <MaterialIcons name="check-circle" size={18} color="#10B981" />
-            </View>
-            <View style={styles.bentoTextContainer}>
-              <Text style={[styles.bentoNumber, themeStyles.textPrimary]}>{stats.completedTasks}</Text>
-              <Text style={[styles.bentoLabel, themeStyles.textSecondary]} numberOfLines={1}>Completed</Text>
-            </View>
-          </View>
-
-          {/* Pending Stats */}
-          <View style={[styles.bentoCard, themeStyles.cardBg, styles.cardBorder, { width: "48%" }]}>
-            <View style={[styles.bentoIconContainer, { backgroundColor: "rgba(245, 158, 11, 0.1)" }]}>
-              <MaterialIcons name="hourglass-empty" size={18} color="#F59E0B" />
-            </View>
-            <View style={styles.bentoTextContainer}>
-              <Text style={[styles.bentoNumber, themeStyles.textPrimary]}>{stats.pendingTasks}</Text>
-              <Text style={[styles.bentoLabel, themeStyles.textSecondary]} numberOfLines={1}>Pending</Text>
-            </View>
-          </View>
-
-          {/* High Priority Stats */}
+          {/* High Priority */}
           <View style={[styles.bentoCard, themeStyles.cardBg, styles.cardBorder, { width: "48%" }]}>
             <View style={[styles.bentoIconContainer, { backgroundColor: "rgba(239, 68, 68, 0.1)" }]}>
               <MaterialIcons name="priority-high" size={18} color="#EF4444" />
             </View>
             <View style={styles.bentoTextContainer}>
               <Text style={[styles.bentoNumber, themeStyles.textPrimary]}>{stats.highPriorityCount}</Text>
-              <Text style={[styles.bentoLabel, themeStyles.textSecondary]} numberOfLines={1}>High Priority</Text>
+              <Text style={[styles.bentoLabel, themeStyles.textSecondary]} numberOfLines={1}>{t('highPriority')}</Text>
             </View>
           </View>
 
-          {/* Completion Rate Stats */}
+          {/* Overdue */}
           <View style={[styles.bentoCard, themeStyles.cardBg, styles.cardBorder, { width: "48%" }]}>
-            <View style={[styles.bentoIconContainer, { backgroundColor: "rgba(59, 130, 246, 0.1)" }]}>
-              <MaterialIcons name="trending-up" size={18} color="#3B82F6" />
+            <View style={[styles.bentoIconContainer, { backgroundColor: "rgba(244, 63, 94, 0.1)" }]}>
+              <MaterialIcons name="event-busy" size={18} color="#F43F5E" />
             </View>
             <View style={styles.bentoTextContainer}>
-              <Text style={[styles.bentoNumber, themeStyles.textPrimary]}>{stats.completionRate}%</Text>
-              <Text style={[styles.bentoLabel, themeStyles.textSecondary]} numberOfLines={1}>Rate</Text>
+              <Text style={[styles.bentoNumber, themeStyles.textPrimary]}>{stats.missedTasks}</Text>
+              <Text style={[styles.bentoLabel, themeStyles.textSecondary]} numberOfLines={1}>{t('overdue')}</Text>
+            </View>
+          </View>
+
+          {/* Active Work Focus */}
+          <View style={[styles.bentoCard, themeStyles.cardBg, styles.cardBorder, { width: "48%" }]}>
+            <View style={[styles.bentoIconContainer, { backgroundColor: "rgba(6, 182, 212, 0.1)" }]}>
+              <MaterialIcons name="business-center" size={18} color="#06B6D4" />
+            </View>
+            <View style={styles.bentoTextContainer}>
+              <Text style={[styles.bentoNumber, themeStyles.textPrimary]}>{activeWorkCount}</Text>
+              <Text style={[styles.bentoLabel, themeStyles.textSecondary]} numberOfLines={1}>{t('activeWork')}</Text>
+            </View>
+          </View>
+
+          {/* Active Study Focus */}
+          <View style={[styles.bentoCard, themeStyles.cardBg, styles.cardBorder, { width: "48%" }]}>
+            <View style={[styles.bentoIconContainer, { backgroundColor: "rgba(99, 102, 241, 0.1)" }]}>
+              <MaterialIcons name="school" size={18} color="#6366F1" />
+            </View>
+            <View style={styles.bentoTextContainer}>
+              <Text style={[styles.bentoNumber, themeStyles.textPrimary]}>{activeStudyCount}</Text>
+              <Text style={[styles.bentoLabel, themeStyles.textSecondary]} numberOfLines={1}>{t('activeStudy')}</Text>
             </View>
           </View>
         </View>
 
         {/* Recent Activity */}
         <Text style={[styles.sectionTitle, themeStyles.textPrimary, { marginTop: 24, marginBottom: 12 }]}>
-          Recent Activity
+          {t('recentActivity')}
         </Text>
         <View style={[styles.activityListContainer, themeStyles.cardBg, styles.cardBorder]}>
           {recentActivity.length === 0 ? (
-            <Text style={[styles.emptyActivityText, themeStyles.textSecondary]}>No recent activities yet.</Text>
+            <Text style={[styles.emptyActivityText, themeStyles.textSecondary]}>{t('noRecentActivity')}</Text>
+
           ) : (
             recentActivity.map((activity, index) => (
               <View key={activity.id} style={styles.activityItem}>
@@ -338,22 +370,200 @@ export default function HomeScreen() {
           priority: editingTask.priority,
           dueDate: editingTask.dueDate.split('T')[0],
           status: editingTask.status,
+          repeat: editingTask.repeat,
         } : undefined}
       />
+
+      {/* Confirm Deletion popup */}
+      <ConfirmDialog
+        visible={deleteTarget !== null}
+        title={t('deleteTaskTitle')}
+        message={t('deleteTaskConfirm', { title: deleteTarget?.title || '' })}
+        confirmLabel={t('delete')}
+        cancelLabel={t('cancel')}
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
+
+      {/* Task Details Bottom Sheet */}
+      <Modal
+        visible={showDetail}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowDetail(false)}
+      >
+        <Pressable 
+          style={styles.modalOverlay} 
+          onPress={() => setShowDetail(false)}
+        >
+          <View style={[styles.bottomSheet, { backgroundColor: isDark ? "#121A17" : "#FFFFFF" }]}>
+            {/* Drag handle */}
+            <View style={[styles.dragHandle, { backgroundColor: isDark ? "#2A3631" : "#D1DFD8" }]} />
+            
+            {detailTarget && (
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.sheetContent}>
+                {/* Header Title */}
+                <Text style={[styles.sheetTitle, themeStyles.textPrimary]}>{detailTarget.title}</Text>
+                
+                {/* Note / Description */}
+                <Text style={[styles.sheetLabel, themeStyles.textSecondary]}>{t('descriptionLabel')}</Text>
+                <View style={[styles.sheetDescriptionBox, { backgroundColor: isDark ? "#0A100D" : "#F8FAF8", borderColor: isDark ? "#2C3E36" : "#E2E8E4" }]}>
+                  <Text style={[styles.sheetDescriptionText, themeStyles.textPrimary]}>
+                    {detailTarget.description || t('noDescription')}
+                  </Text>
+                </View>
+
+                {/* Metadata Grid */}
+                <View style={styles.sheetMetaGrid}>
+                  <View style={styles.sheetMetaRow}>
+                    <Text style={[styles.sheetMetaLabel, themeStyles.textSecondary]}>{t('categoryLabel')}</Text>
+                    <View style={[styles.sheetBadge, { backgroundColor: isDark ? "#1E2A24" : "#EAF4EE" }]}>
+                      <Text style={[styles.sheetBadgeText, { color: isDark ? "#5EEAD4" : "#193C3A" }]}>
+                        {detailTarget.category === 'WORK' ? t('workCat') : detailTarget.category === 'STUDY' ? t('studyCat') : t('personalCat')}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.sheetMetaRow}>
+                    <Text style={[styles.sheetMetaLabel, themeStyles.textSecondary]}>{t('priorityLabel')}</Text>
+                    <View style={[
+                      styles.sheetBadge, 
+                      { 
+                        backgroundColor: detailTarget.priority === 'HIGH' ? 'rgba(239, 68, 68, 0.1)' : detailTarget.priority === 'MED' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(16, 185, 129, 0.1)' 
+                      }
+                    ]}>
+                      <Text style={[
+                        styles.sheetBadgeText, 
+                        { color: detailTarget.priority === 'HIGH' ? '#EF4444' : detailTarget.priority === 'MED' ? '#D97706' : '#059669' }
+                      ]}>
+                        {detailTarget.priority === 'HIGH' ? t('highPri') : detailTarget.priority === 'MED' ? t('medPri') : t('lowPri')}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.sheetMetaRow}>
+                    <Text style={[styles.sheetMetaLabel, themeStyles.textSecondary]}>{t('statusLabel')}</Text>
+                    <Pressable 
+                      onPress={() => {
+                        toggleStatus(detailTarget.id);
+                        setDetailTarget(prev => {
+                          if (!prev) return null;
+                          const nextStatus: TaskStatus = 
+                            prev.status === 'TODO' ? 'IN PROGRESS' :
+                            prev.status === 'IN PROGRESS' ? 'DONE' : 'TODO';
+                          return { ...prev, status: nextStatus };
+                        });
+                      }}
+                      style={[
+                        styles.sheetBadge,
+                        {
+                          backgroundColor: 
+                            detailTarget.status === 'DONE' ? 'rgba(16, 185, 129, 0.1)' : 
+                            detailTarget.status === 'IN PROGRESS' ? 'rgba(245, 158, 11, 0.1)' : 
+                            'rgba(108, 124, 116, 0.1)'
+                        }
+                      ]}
+                    >
+                      <Text style={[
+                        styles.sheetBadgeText,
+                        { 
+                          color: 
+                            detailTarget.status === 'DONE' ? '#10B981' : 
+                            detailTarget.status === 'IN PROGRESS' ? '#D97706' : 
+                            '#6B7C72' 
+                        }
+                      ]}>
+                        {detailTarget.status === 'TODO' ? t('toDo') : 
+                         detailTarget.status === 'IN PROGRESS' ? t('inProgress') : 
+                         t('completedSection')}
+                      </Text>
+                    </Pressable>
+                  </View>
+
+                  <View style={styles.sheetMetaRow}>
+                    <Text style={[styles.sheetMetaLabel, themeStyles.textSecondary]}>{t('dueDateLabel')}</Text>
+                    <Text style={[styles.sheetDateValue, themeStyles.textPrimary]}>
+                      {new Date(detailTarget.dueDate).toLocaleDateString(settings.language === 'vi' ? 'vi-VN' : 'en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                    </Text>
+                  </View>
+
+                  {detailTarget.repeat !== 'NONE' && (
+                    <View style={styles.sheetMetaRow}>
+                      <Text style={[styles.sheetMetaLabel, themeStyles.textSecondary]}>{t('repeatLabel')}</Text>
+                      <View style={[
+                        styles.sheetBadge,
+                        { backgroundColor: isDark ? "rgba(59, 130, 246, 0.1)" : "rgba(95, 128, 109, 0.1)" }
+                      ]}>
+                        <Text style={[
+                          styles.sheetBadgeText,
+                          { color: isDark ? "#3B82F6" : "#5F806D" }
+                        ]}>
+                          {detailTarget.repeat === 'DAILY' ? t('dailyRepeat') : detailTarget.repeat === 'WEEKLY' ? t('weeklyRepeat') : t('monthlyRepeat')}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+                </View>
+
+                {/* Focus Timer Trigger Button */}
+                <Pressable
+                  style={[styles.focusTimerBtn, { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.15)' : 'rgba(95, 128, 109, 0.15)' }]}
+                  onPress={() => {
+                    setShowDetail(false);
+                    setActiveFocusTask(detailTarget);
+                    setShowFocusTimerModal(true);
+                  }}
+                >
+                  <MaterialIcons name="timer" size={20} color={isDark ? "#3B82F6" : "#5F806D"} />
+                  <Text style={[styles.focusTimerBtnText, { color: isDark ? "#3B82F6" : "#5F806D" }]}>
+                    {t('startFocusSession')}
+                  </Text>
+                </Pressable>
+
+                {/* Bottom sheet footer buttons */}
+                <View style={styles.sheetActionsRow}>
+                  <Pressable 
+                    style={[styles.sheetActionBtn, styles.deleteBtn]} 
+                    onPress={() => {
+                      setShowDetail(false);
+                      setDeleteTarget(detailTarget);
+                    }}
+                  >
+                    <MaterialIcons name="delete-outline" size={20} color="#EF4444" />
+                    <Text style={styles.deleteBtnText}>{t('delete')}</Text>
+                  </Pressable>
+
+                  <Pressable 
+                    style={[styles.sheetActionBtn, styles.editBtn, { backgroundColor: isDark ? "#10B981" : "#193C3A" }]} 
+                    onPress={() => {
+                      setShowDetail(false);
+                      setEditingTask(detailTarget);
+                      setShowForm(true);
+                    }}
+                  >
+                    <MaterialIcons name="edit" size={20} color="#FFFFFF" />
+                    <Text style={styles.editBtnText}>{t('editDetails')}</Text>
+                  </Pressable>
+                </View>
+              </ScrollView>
+            )}
+          </View>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
 
-function getRelativeTime(dateStr: string): string {
+function getRelativeTime(dateStr: string, t: any): string {
   const now = new Date();
   const date = new Date(dateStr);
   const diff = Math.floor((now.getTime() - date.getTime()) / 60000);
-  if (diff < 1) return "Just now";
-  if (diff < 60) return `${diff}m ago`;
+  if (diff < 1) return t('justNow');
+  if (diff < 60) return t('minutesAgo', { count: diff });
   const hrs = Math.floor(diff / 60);
-  if (hrs < 24) return `${hrs}h ago`;
+  if (hrs < 24) return t('hoursAgo', { count: hrs });
   const days = Math.floor(hrs / 24);
-  if (days < 7) return `${days}d ago`;
+  if (days < 7) return t('daysAgo', { count: days });
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
@@ -701,5 +911,123 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 5,
     width: 56,
+  },
+
+  // Modal Overlay / Bottom Sheet
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  bottomSheet: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: 40,
+    maxHeight: '80%',
+  },
+  dragHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 20,
+  },
+  sheetContent: {
+    gap: 16,
+  },
+  sheetTitle: {
+    fontSize: 22,
+    fontWeight: '900',
+    letterSpacing: -0.4,
+    marginBottom: 4,
+  },
+  sheetLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.2,
+  },
+  sheetDescriptionBox: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 14,
+    minHeight: 80,
+  },
+  sheetDescriptionText: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '500',
+  },
+  sheetMetaGrid: {
+    gap: 12,
+    marginVertical: 4,
+  },
+  sheetMetaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  sheetMetaLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  sheetBadge: {
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  sheetBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  sheetDateValue: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  sheetActionsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 18,
+  },
+  sheetActionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 48,
+    borderRadius: 12,
+  },
+  deleteBtn: {
+    borderWidth: 1.5,
+    borderColor: '#EF4444',
+  },
+  deleteBtnText: {
+    color: '#EF4444',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  editBtn: {
+    elevation: 2,
+  },
+  editBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  focusTimerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 48,
+    borderRadius: 12,
+    marginTop: 8,
+  },
+  focusTimerBtnText: {
+    fontSize: 14,
+    fontWeight: '800',
   },
 });

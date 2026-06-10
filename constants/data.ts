@@ -1,7 +1,8 @@
 export type TaskPriority = 'HIGH' | 'MED' | 'LOW';
 export type TaskCategory = 'WORK' | 'STUDY' | 'PERSONAL';
-export type TaskStatus = 'TODO' | 'IN PROGRESS' | 'REVIEW' | 'DONE';
-export type FilterType = 'All' | 'Completed' | 'Pending' | 'High' | 'Study' | 'Work' | 'Personal';
+export type TaskStatus = 'TODO' | 'IN PROGRESS' | 'DONE';
+export type TaskRepeat = 'NONE' | 'DAILY' | 'WEEKLY' | 'MONTHLY';
+export type FilterType = 'All' | 'High' | 'Study' | 'Work' | 'Personal';
 
 export interface Task {
   id: string;
@@ -12,6 +13,7 @@ export interface Task {
   dueDate: string; // ISO date string
   status: TaskStatus;
   createdAt: string;
+  repeat: TaskRepeat;
 }
 
 export interface Activity {
@@ -37,6 +39,7 @@ export const initialTasks: Task[] = [
     dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
     status: 'IN PROGRESS',
     createdAt: new Date().toISOString(),
+    repeat: 'NONE',
   },
   {
     id: generateId(),
@@ -47,6 +50,7 @@ export const initialTasks: Task[] = [
     dueDate: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000).toISOString(),
     status: 'TODO',
     createdAt: new Date().toISOString(),
+    repeat: 'NONE',
   },
   {
     id: generateId(),
@@ -57,6 +61,7 @@ export const initialTasks: Task[] = [
     dueDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
     status: 'DONE',
     createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    repeat: 'NONE',
   },
   {
     id: generateId(),
@@ -67,6 +72,7 @@ export const initialTasks: Task[] = [
     dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
     status: 'TODO',
     createdAt: new Date().toISOString(),
+    repeat: 'NONE',
   },
   {
     id: generateId(),
@@ -77,6 +83,7 @@ export const initialTasks: Task[] = [
     dueDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(),
     status: 'IN PROGRESS',
     createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    repeat: 'NONE',
   },
   {
     id: generateId(),
@@ -87,6 +94,7 @@ export const initialTasks: Task[] = [
     dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
     status: 'TODO',
     createdAt: new Date().toISOString(),
+    repeat: 'NONE',
   },
   {
     id: generateId(),
@@ -97,7 +105,19 @@ export const initialTasks: Task[] = [
     dueDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
     status: 'DONE',
     createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    repeat: 'NONE',
   },
+  {
+    id: generateId(),
+    title: 'Update Project Specs',
+    description: 'Incorporate feedback from stakeholder review into project documentation.',
+    category: 'WORK',
+    priority: 'HIGH',
+    dueDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    status: 'TODO',
+    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    repeat: 'NONE',
+  }
 ];
 
 export const formatDate = (dateStr: string): string => {
@@ -115,8 +135,6 @@ export const formatDate = (dateStr: string): string => {
 
 export const getFilterLabel = (task: Task): FilterType[] => {
   const labels: FilterType[] = ['All'];
-  if (task.status === 'DONE') labels.push('Completed');
-  if (task.status === 'TODO' || task.status === 'IN PROGRESS') labels.push('Pending');
   if (task.priority === 'HIGH') labels.push('High');
   if (task.category === 'STUDY') labels.push('Study');
   if (task.category === 'WORK') labels.push('Work');

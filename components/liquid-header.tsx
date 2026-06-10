@@ -1,5 +1,5 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { Image, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp } from "@/context/app-context";
 
@@ -12,7 +12,13 @@ export function LiquidHeader({
   showNotifications = false,
   showSearch = false,
 }: LiquidHeaderProps) {
-  const { settings } = useApp();
+  const {
+    settings,
+    isFocusTimerStarted,
+    focusSecondsRemaining,
+    activeFocusTask,
+    setShowFocusTimerModal,
+  } = useApp();
   const isDark = settings.darkMode;
   const insets = useSafeAreaInsets();
 
@@ -55,6 +61,37 @@ export function LiquidHeader({
         </Text>
       </View>
       <View style={styles.topActions}>
+        {isFocusTimerStarted && activeFocusTask && (
+          <Pressable
+            onPress={() => setShowFocusTimerModal(true)}
+            style={[
+              styles.miniTimerPill,
+              {
+                backgroundColor: isDark
+                  ? "rgba(59, 130, 246, 0.12)"
+                  : "rgba(95, 128, 109, 0.12)",
+                borderColor: isDark
+                  ? "rgba(59, 130, 246, 0.2)"
+                  : "rgba(95, 128, 109, 0.2)",
+              },
+            ]}
+          >
+            <MaterialIcons
+              name="timer"
+              size={13}
+              color={isDark ? "#3B82F6" : "#5F806D"}
+            />
+            <Text
+              style={[
+                styles.miniTimerText,
+                { color: isDark ? "#3B82F6" : "#5F806D" },
+              ]}
+            >
+              {Math.floor(focusSecondsRemaining / 60)}:
+              {(focusSecondsRemaining % 60).toString().padStart(2, "0")}
+            </Text>
+          </Pressable>
+        )}
         {showSearch ? (
           <View
             style={[
@@ -152,5 +189,19 @@ const styles = StyleSheet.create({
     height: 34,
     justifyContent: "center",
     width: 34,
+  },
+  miniTimerPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    borderRadius: 14,
+    borderWidth: 1,
+    height: 34,
+    paddingHorizontal: 10,
+    justifyContent: "center",
+  },
+  miniTimerText: {
+    fontSize: 11,
+    fontWeight: "800",
   },
 });

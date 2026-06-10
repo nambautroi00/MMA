@@ -1,5 +1,5 @@
 import { useReducer, useCallback, useMemo } from 'react';
-import { Task, TaskPriority, TaskCategory, TaskStatus, FilterType, initialTasks, generateId } from '@/constants/data';
+import { Task, TaskPriority, TaskCategory, TaskStatus, TaskRepeat, FilterType, initialTasks, generateId } from '@/constants/data';
 
 export interface ActivityLog {
   id: string;
@@ -29,8 +29,28 @@ interface TaskState {
   activityLog: ActivityLog[];
 }
 
+function calculateNextDueDate(currentDateStr: string, repeat: TaskRepeat): Date {
+  const date = new Date(currentDateStr);
+  if (isNaN(date.getTime())) return new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+  switch (repeat) {
+    case 'DAILY':
+      date.setDate(date.getDate() + 1);
+      break;
+    case 'WEEKLY':
+      date.setDate(date.getDate() + 7);
+      break;
+    case 'MONTHLY':
+      date.setMonth(date.getMonth() + 1);
+      break;
+    default:
+      break;
+  }
+  return date;
+}
+
 const priorityOrder: Record<TaskPriority, number> = { HIGH: 1, MED: 2, LOW: 3 };
-const statusOrder: Record<TaskStatus, number> = { 'IN PROGRESS': 1, TODO: 2, REVIEW: 3, DONE: 4 };
+const statusOrder: Record<TaskStatus, number> = { 'IN PROGRESS': 1, TODO: 2, DONE: 3 };
 
 function taskReducer(state: TaskState, action: TaskAction): TaskState {
   switch (action.type) {
@@ -56,6 +76,7 @@ function taskReducer(state: TaskState, action: TaskAction): TaskState {
     case 'UPDATE_TASK': {
       const { id, updates } = action.payload;
       let completedInc = 0;
+      let extraTasks: Task[] = [];
       const oldTask = state.tasks.find((t) => t.id === id);
       if (!oldTask) return state;
 
@@ -73,6 +94,24 @@ function taskReducer(state: TaskState, action: TaskAction): TaskState {
         timestamp: new Date().toISOString(),
       };
 
+      const finalRepeat = updates.repeat !== undefined ? updates.repeat : oldTask.repeat;
+      const finalDueDate = updates.dueDate !== undefined ? updates.dueDate : oldTask.dueDate;
+      if (!wasCompleted && isCompleted && finalRepeat && finalRepeat !== 'NONE') {
+        const nextDueDate = calculateNextDueDate(finalDueDate, finalRepeat);
+        const clonedTask: Task = {
+          id: generateId(),
+          title: updates.title !== undefined ? updates.title : oldTask.title,
+          description: updates.description !== undefined ? updates.description : oldTask.description,
+          category: updates.category !== undefined ? updates.category : oldTask.category,
+          priority: updates.priority !== undefined ? updates.priority : oldTask.priority,
+          dueDate: nextDueDate.toISOString(),
+          status: 'TODO',
+          createdAt: new Date().toISOString(),
+          repeat: finalRepeat,
+        };
+        extraTasks.push(clonedTask);
+      }
+
       const updatedTasks = state.tasks.map((t) => {
         if (t.id === id) {
           return { ...t, ...updates };
@@ -82,7 +121,7 @@ function taskReducer(state: TaskState, action: TaskAction): TaskState {
 
       return { 
         ...state, 
-        tasks: updatedTasks,
+        tasks: extraTasks.length > 0 ? [...extraTasks, ...updatedTasks] : updatedTasks,
         completedCount: state.completedCount + completedInc,
         activityLog: [newLog, ...state.activityLog],
       };
@@ -106,12 +145,12 @@ function taskReducer(state: TaskState, action: TaskAction): TaskState {
     case 'TOGGLE_STATUS': {
       let completedInc = 0;
       let newLog: ActivityLog | null = null;
+      let extraTasks: Task[] = [];
       const updatedTasks = state.tasks.map((t) => {
         if (t.id !== action.payload) return t;
         const nextStatus: TaskStatus =
           t.status === 'TODO' ? 'IN PROGRESS' :
-          t.status === 'IN PROGRESS' ? 'REVIEW' :
-          t.status === 'REVIEW' ? 'DONE' : 'TODO';
+          t.status === 'IN PROGRESS' ? 'DONE' : 'TODO';
         if (nextStatus === 'DONE') {
           completedInc = 1;
         }
@@ -124,11 +163,27 @@ function taskReducer(state: TaskState, action: TaskAction): TaskState {
           timestamp: new Date().toISOString(),
         };
 
+        if (nextStatus === 'DONE' && t.repeat && t.repeat !== 'NONE') {
+          const nextDueDate = calculateNextDueDate(t.dueDate, t.repeat);
+          const clonedTask: Task = {
+            id: generateId(),
+            title: t.title,
+            description: t.description,
+            category: t.category,
+            priority: t.priority,
+            dueDate: nextDueDate.toISOString(),
+            status: 'TODO',
+            createdAt: new Date().toISOString(),
+            repeat: t.repeat,
+          };
+          extraTasks.push(clonedTask);
+        }
+
         return { ...t, status: nextStatus };
       });
       return { 
         ...state, 
-        tasks: updatedTasks,
+        tasks: extraTasks.length > 0 ? [...extraTasks, ...updatedTasks] : updatedTasks,
         completedCount: state.completedCount + completedInc,
         activityLog: newLog ? [newLog, ...state.activityLog] : state.activityLog,
       };
@@ -228,12 +283,6 @@ export function useTasks() {
 
     // Filter by filter type
     switch (state.activeFilter) {
-      case 'Completed':
-        result = result.filter((t) => t.status === 'DONE');
-        break;
-      case 'Pending':
-        result = result.filter((t) => t.status === 'TODO' || t.status === 'IN PROGRESS');
-        break;
       case 'High':
         result = result.filter((t) => t.priority === 'HIGH');
         break;

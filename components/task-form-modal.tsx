@@ -11,7 +11,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { TaskCategory, TaskPriority, TaskStatus } from '@/constants/data';
+import { TaskCategory, TaskPriority, TaskStatus, TaskRepeat } from '@/constants/data';
 import { useApp } from '@/context/app-context';
 
 interface TaskFormData {
@@ -21,6 +21,7 @@ interface TaskFormData {
   priority: TaskPriority;
   dueDate: string;
   status: TaskStatus;
+  repeat: TaskRepeat;
 }
 
 interface TaskFormModalProps {
@@ -37,13 +38,10 @@ const defaultForm: TaskFormData = {
   priority: 'MED',
   dueDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
   status: 'TODO',
+  repeat: 'NONE',
 };
 
-const priorities: { label: string; value: TaskPriority; color: string }[] = [
-  { label: 'High', value: 'HIGH', color: '#D94F45' },
-  { label: 'Medium', value: 'MED', color: '#E6A23C' },
-  { label: 'Low', value: 'LOW', color: '#6FA77D' },
-];
+// priorities is now defined inside TaskFormModal to support localization
 
 const getDaysInMonth = (year: number, month: number) => {
   const date = new Date(year, month, 1);
@@ -66,8 +64,14 @@ const getDaysInMonth = (year: number, month: number) => {
 };
 
 export function TaskFormModal({ visible, onClose, onSubmit, initialData }: TaskFormModalProps) {
-  const { settings } = useApp();
+  const { settings, t } = useApp();
   const isDark = settings.darkMode;
+
+  const priorities: { label: string; value: TaskPriority; color: string }[] = [
+    { label: t('highPri'), value: 'HIGH', color: '#D94F45' },
+    { label: t('medPri'), value: 'MED', color: '#E6A23C' },
+    { label: t('lowPri'), value: 'LOW', color: '#6FA77D' },
+  ];
 
   const [form, setForm] = useState<TaskFormData>(initialData || { ...defaultForm });
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -96,6 +100,7 @@ export function TaskFormModal({ visible, onClose, onSubmit, initialData }: TaskF
       priority: form.priority,
       dueDate: new Date(form.dueDate).toISOString(),
       status: form.status,
+      repeat: form.repeat,
     });
     setForm({ ...defaultForm });
     onClose();
@@ -122,12 +127,33 @@ export function TaskFormModal({ visible, onClose, onSubmit, initialData }: TaskF
   };
 
   const categories: { label: string; value: TaskCategory; color: string }[] = [
-    { label: 'Work', value: 'WORK', color: isDark ? '#10B981' : '#7CA086' },
-    { label: 'Study', value: 'STUDY', color: isDark ? '#3B82F6' : '#6D927F' },
-    { label: 'Personal', value: 'PERSONAL', color: isDark ? '#F59E0B' : '#D4A574' },
+    { label: t('workCat'), value: 'WORK', color: isDark ? '#10B981' : '#7CA086' },
+    { label: t('studyCat'), value: 'STUDY', color: isDark ? '#3B82F6' : '#6D927F' },
+    { label: t('personalCat'), value: 'PERSONAL', color: isDark ? '#F59E0B' : '#D4A574' },
   ];
 
-  const isValid = form.title.trim().length > 0;
+  const getLocalDate = (dateStr: string) => {
+    const parts = dateStr.split('T')[0].split('-');
+    if (parts.length === 3) {
+      return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    }
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return null;
+    d.setHours(0,0,0,0);
+    return d;
+  };
+
+  const parsedDate = getLocalDate(form.dueDate);
+  const isDateParseable = parsedDate !== null;
+  
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const isPastDate = isDateParseable && parsedDate.getTime() < today.getTime();
+  const isOriginalDate = initialData && isDateParseable && getLocalDate(initialData.dueDate)?.getTime() === parsedDate.getTime();
+  const showDatePickerWarning = isPastDate && !isOriginalDate;
+
+  const isValid = form.title.trim().length > 0 && isDateParseable && !showDatePickerWarning;
   const year = currentMonth.getFullYear();
   const month = currentMonth.getMonth();
 
@@ -142,7 +168,7 @@ export function TaskFormModal({ visible, onClose, onSubmit, initialData }: TaskF
             <MaterialIcons name="close" size={24} color={isDark ? '#8F9D97' : '#6D8D7D'} />
           </Pressable>
           <Text style={[styles.headerTitle, { color: isDark ? '#EBF1EE' : '#26302B' }]}>
-            {initialData ? 'Edit Task' : 'New Task'}
+            {initialData ? t('editTask') : t('newTask')}
           </Text>
           <Pressable
             onPress={handleSubmit}
@@ -158,16 +184,16 @@ export function TaskFormModal({ visible, onClose, onSubmit, initialData }: TaskF
         </View>
 
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          <Text style={[styles.label, { color: isDark ? '#6B7C72' : '#6D7F76' }]}>Title</Text>
+          <Text style={[styles.label, { color: isDark ? '#6B7C72' : '#6D7F76' }]}>{t('titleLabel')}</Text>
           <TextInput
             style={[styles.input, { backgroundColor: isDark ? '#121A17' : '#FFFFFF', color: isDark ? '#EBF1EE' : '#34433C', borderColor: isDark ? '#1C2A24' : '#E2EFEA' }]}
             value={form.title}
             onChangeText={(text) => setForm((f) => ({ ...f, title: text }))}
-            placeholder="Task title"
+            placeholder={t('taskTitlePlaceholder')}
             placeholderTextColor={isDark ? '#5C6F65' : '#A2AEA8'}
           />
 
-          <Text style={[styles.label, { color: isDark ? '#6B7C72' : '#6D7F76' }]}>Description</Text>
+          <Text style={[styles.label, { color: isDark ? '#6B7C72' : '#6D7F76' }]}>{t('descriptionLabel')}</Text>
           <TextInput
             style={[
               styles.input,
@@ -176,12 +202,12 @@ export function TaskFormModal({ visible, onClose, onSubmit, initialData }: TaskF
             ]}
             value={form.description}
             onChangeText={(text) => setForm((f) => ({ ...f, description: text }))}
-            placeholder="Add description..."
+            placeholder={t('addDescriptionPlaceholder')}
             placeholderTextColor={isDark ? '#5C6F65' : '#A2AEA8'}
             multiline
           />
 
-          <Text style={[styles.label, { color: isDark ? '#6B7C72' : '#6D7F76' }]}>Category</Text>
+          <Text style={[styles.label, { color: isDark ? '#6B7C72' : '#6D7F76' }]}>{t('categoryLabel')}</Text>
           <View style={styles.chipRow}>
             {categories.map((cat) => {
               const active = form.category === cat.value;
@@ -205,7 +231,7 @@ export function TaskFormModal({ visible, onClose, onSubmit, initialData }: TaskF
             })}
           </View>
 
-          <Text style={[styles.label, { color: isDark ? '#6B7C72' : '#6D7F76' }]}>Priority</Text>
+          <Text style={[styles.label, { color: isDark ? '#6B7C72' : '#6D7F76' }]}>{t('priorityLabel')}</Text>
           <View style={styles.chipRow}>
             {priorities.map((pri) => {
               const active = form.priority === pri.value;
@@ -229,9 +255,13 @@ export function TaskFormModal({ visible, onClose, onSubmit, initialData }: TaskF
             })}
           </View>
 
-          <Text style={[styles.label, { color: isDark ? '#6B7C72' : '#6D7F76' }]}>Due Date</Text>
+          <Text style={[styles.label, { color: isDark ? '#6B7C72' : '#6D7F76' }]}>{t('dueDateLabel')}</Text>
           <Pressable
-            style={[styles.inputContainer, { backgroundColor: isDark ? '#121A17' : '#FFFFFF', borderColor: isDark ? '#1C2A24' : '#E2EFEA' }]}
+            style={[
+              styles.inputContainer,
+              { backgroundColor: isDark ? '#121A17' : '#FFFFFF', borderColor: isDark ? '#1C2A24' : '#E2EFEA' },
+              showDatePickerWarning && { borderColor: '#D94F45' }
+            ]}
             onPress={() => setShowDatePicker(true)}
           >
             <MaterialIcons name="today" size={20} color={isDark ? '#8F9D97' : '#6D8D7D'} style={styles.inputIcon} />
@@ -239,8 +269,43 @@ export function TaskFormModal({ visible, onClose, onSubmit, initialData }: TaskF
               {form.dueDate}
             </Text>
           </Pressable>
+          {showDatePickerWarning && (
+            <Text style={{ color: '#D94F45', fontSize: 12, marginTop: 6, fontWeight: '600' }}>
+              {t('dueDatePastWarning')}
+            </Text>
+          )}
 
-          <Text style={[styles.label, { color: isDark ? '#6B7C72' : '#6D7F76' }]}>Status</Text>
+          <Text style={[styles.label, { color: isDark ? '#6B7C72' : '#6D7F76' }]}>{t('repeatLabel')}</Text>
+          <View style={styles.chipRow}>
+            {([
+              { label: t('noneRepeat'), value: 'NONE' },
+              { label: t('dailyRepeat'), value: 'DAILY' },
+              { label: t('weeklyRepeat'), value: 'WEEKLY' },
+              { label: t('monthlyRepeat'), value: 'MONTHLY' },
+            ] as { label: string; value: TaskRepeat }[]).map((opt) => {
+              const active = form.repeat === opt.value;
+              const activeColor = isDark ? '#3B82F6' : '#5F806D';
+              return (
+                <Pressable
+                  key={opt.value}
+                  style={[
+                    styles.chip,
+                    {
+                      backgroundColor: active ? activeColor : (isDark ? '#121A17' : '#FFFFFF'),
+                      borderColor: active ? activeColor : (isDark ? '#1C2A24' : '#DEE8E1'),
+                    }
+                  ]}
+                  onPress={() => setForm((f) => ({ ...f, repeat: opt.value }))}
+                >
+                  <Text style={[styles.chipText, { color: active ? '#FFFFFF' : (isDark ? '#8F9D97' : '#7C8B83') }]}>
+                    {opt.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <Text style={[styles.label, { color: isDark ? '#6B7C72' : '#6D7F76' }]}>{t('statusLabel')}</Text>
           <View style={styles.chipRow}>
             {(['TODO', 'IN PROGRESS',] as TaskStatus[]).map((status) => {
               const active = form.status === status;
@@ -260,8 +325,8 @@ export function TaskFormModal({ visible, onClose, onSubmit, initialData }: TaskF
                   onPress={() => setForm((f) => ({ ...f, status }))}
                 >
                   <Text style={[styles.chipText, { color: active ? '#FFFFFF' : (isDark ? '#8F9D97' : '#7C8B83') }]}>
-                    {status === 'TODO' ? 'To Do' :
-                      status === 'IN PROGRESS' ? 'In Progress' :
+                    {status === 'TODO' ? t('toDo') :
+                      status === 'IN PROGRESS' ? t('inProgress') :
                         ''}
                   </Text>
                 </Pressable>
@@ -286,7 +351,7 @@ export function TaskFormModal({ visible, onClose, onSubmit, initialData }: TaskF
                 <MaterialIcons name="chevron-left" size={24} color={isDark ? '#EBF1EE' : '#26302B'} style={styles.navIcon} />
               </Pressable>
               <Text style={[styles.calendarMonthText, { color: isDark ? '#EBF1EE' : '#26302B' }]}>
-                {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                {currentMonth.toLocaleDateString(settings.language === 'vi' ? 'vi-VN' : 'en-US', { month: 'long', year: 'numeric' })}
               </Text>
               <Pressable onPress={handleNextMonth} style={styles.calendarNavBtn}>
                 <MaterialIcons name="chevron-right" size={24} color={isDark ? '#EBF1EE' : '#26302B'} style={styles.navIcon} />
@@ -295,7 +360,7 @@ export function TaskFormModal({ visible, onClose, onSubmit, initialData }: TaskF
 
             {/* Days of week header */}
             <View style={styles.weekDaysRow}>
-              {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, idx) => (
+              {(settings.language === 'vi' ? ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'] : ['M', 'T', 'W', 'T', 'F', 'S', 'S']).map((day, idx) => (
                 <Text key={idx} style={[styles.weekDayLabel, { color: isDark ? '#5C6F65' : '#8A9991' }]}>{day}</Text>
               ))}
             </View>
@@ -308,18 +373,29 @@ export function TaskFormModal({ visible, onClose, onSubmit, initialData }: TaskF
                 }
                 const formattedDay = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
                 const isSelected = form.dueDate === formattedDay;
+                
+                // Disable days in the past (unless it is the original date of an edited task)
+                const todayVal = new Date();
+                todayVal.setHours(0, 0, 0, 0);
+                const isDayPast = day.getTime() < todayVal.getTime();
+                const isDayOriginal = initialData && getLocalDate(initialData.dueDate)?.getTime() === day.getTime();
+                const isDayDisabled = isDayPast && !isDayOriginal;
+
                 return (
                   <Pressable
                     key={day.toISOString()}
                     style={[
                       styles.dayCell,
-                      isSelected && { backgroundColor: isDark ? '#10B981' : '#5F806D' }
+                      isSelected && { backgroundColor: isDark ? '#10B981' : '#5F806D' },
+                      isDayDisabled && { opacity: 0.3 }
                     ]}
                     onPress={() => handleSelectDay(day)}
+                    disabled={isDayDisabled}
                   >
                     <Text style={[
                       styles.dayText,
-                      { color: isSelected ? '#FFFFFF' : (isDark ? '#EBF1EE' : '#26302B') }
+                      { color: isSelected ? '#FFFFFF' : (isDark ? '#EBF1EE' : '#26302B') },
+                      isDayDisabled && { color: isDark ? '#5C6F65' : '#8A9991' }
                     ]}>
                       {day.getDate()}
                     </Text>

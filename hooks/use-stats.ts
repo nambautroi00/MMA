@@ -16,16 +16,14 @@ export interface TaskStats {
   highPriorityCount: number;
   mediumPriorityCount: number;
   lowPriorityCount: number;
-  productivityScore: number;
+  overdueRate: number;
 
   // Status Distribution
   todoCount: number;
   inProgressCount: number;
-  reviewCount: number;
   doneCount: number;
   todoPercent: number;
   inProgressPercent: number;
-  reviewPercent: number;
   donePercent: number;
 }
 
@@ -33,7 +31,7 @@ export function useStats(tasks: Task[]): TaskStats {
   return useMemo(() => {
     const totalTasks = tasks.length;
     const completedTasks = tasks.filter((t) => t.status === 'DONE').length;
-    const pendingTasks = tasks.filter((t) => t.status === 'TODO' || t.status === 'IN PROGRESS' || t.status === 'REVIEW').length;
+    const pendingTasks = tasks.filter((t) => t.status === 'TODO' || t.status === 'IN PROGRESS').length;
     const highPriorityTasks = tasks.filter((t) => t.priority === 'HIGH').length;
 
     const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
@@ -89,12 +87,10 @@ export function useStats(tasks: Task[]): TaskStats {
     // Status counts and percentages
     const todoCount = tasks.filter((t) => t.status === 'TODO').length;
     const inProgressCount = tasks.filter((t) => t.status === 'IN PROGRESS').length;
-    const reviewCount = tasks.filter((t) => t.status === 'REVIEW').length;
     const doneCount = completedTasks;
 
     const todoPercent = totalTasks > 0 ? Math.round((todoCount / totalTasks) * 100) : 0;
     const inProgressPercent = totalTasks > 0 ? Math.round((inProgressCount / totalTasks) * 100) : 0;
-    const reviewPercent = totalTasks > 0 ? Math.round((reviewCount / totalTasks) * 100) : 0;
     const donePercent = totalTasks > 0 ? Math.round((doneCount / totalTasks) * 100) : 0;
 
     // Productivity score calculation: Completed / Total * 100
@@ -115,16 +111,14 @@ export function useStats(tasks: Task[]): TaskStats {
       highPriorityCount,
       mediumPriorityCount,
       lowPriorityCount,
-      productivityScore: score,
+      overdueRate: totalTasks > 0 ? Math.round((missedTasks / totalTasks) * 100) : 0,
 
       // Status Distribution
       todoCount,
       inProgressCount,
-      reviewCount,
       doneCount,
       todoPercent,
       inProgressPercent,
-      reviewPercent,
       donePercent,
     };
   }, [tasks]);

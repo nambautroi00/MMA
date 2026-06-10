@@ -5,39 +5,43 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useApp } from '@/context/app-context';
+import { FocusTimerModal } from '@/components/focus-timer-modal';
 
 export default function TabLayout() {
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-      }}
-      tabBar={(props) => <LiquidTabBar {...props} />}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
+    <View style={{ flex: 1 }}>
+      <Tabs
+        screenOptions={{
+          headerShown: false,
         }}
-      />
-      <Tabs.Screen
-        name="tasks"
-        options={{
-          title: 'Tasks',
-        }}
-      />
-      <Tabs.Screen
-        name="stats"
-        options={{
-          title: 'Stats',
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: 'Settings',
-        }}
-      />
-    </Tabs>
+        tabBar={(props) => <LiquidTabBar {...props} />}>
+        <Tabs.Screen
+          name="index"
+          options={{
+            title: 'Home',
+          }}
+        />
+        <Tabs.Screen
+          name="tasks"
+          options={{
+            title: 'Tasks',
+          }}
+        />
+        <Tabs.Screen
+          name="stats"
+          options={{
+            title: 'Stats',
+          }}
+        />
+        <Tabs.Screen
+          name="settings"
+          options={{
+            title: 'Settings',
+          }}
+        />
+      </Tabs>
+      <FocusTimerModal />
+    </View>
   );
 }
 
@@ -55,7 +59,7 @@ const tabMeta: Record<
 };
 
 function LiquidTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
-  const { settings } = useApp();
+  const { settings, t } = useApp();
   const isDark = settings.darkMode;
 
   return (
@@ -103,7 +107,7 @@ function LiquidTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
                 color={focused ? '#EFFBF3' : '#6F8178'}
               />
               <Text style={[styles.iconLabel, focused && styles.iconLabelActive]}>
-                {meta.label}
+                {route.name === 'index' ? t('home') : t(route.name as any)}
               </Text>
             </View>
           </Pressable>
